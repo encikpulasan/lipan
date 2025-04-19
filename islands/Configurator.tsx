@@ -47,9 +47,8 @@ export default function Configurator(): JSX.Element {
     const defaultSelectedProducts = new Map<string, number>();
     
     products.forEach(product => {
-      if (product.required || product.defaultQuantity > 0) {
-        defaultSelectedProducts.set(product.id, product.defaultQuantity);
-      }
+      // Initialize all products with 0 quantity
+      defaultSelectedProducts.set(product.id, 0);
     });
     
     setSelectedProducts(defaultSelectedProducts);
@@ -144,21 +143,7 @@ export default function Configurator(): JSX.Element {
   
   // Check if required products are selected
   const validateRequiredProducts = (): boolean => {
-    for (const category of categories) {
-      if (category.required) {
-        const categoryProducts = products.filter(p => p.category === category.id && p.required);
-        if (categoryProducts.length > 0) {
-          const hasRequiredProduct = categoryProducts.some(product => 
-            (selectedProducts.get(product.id) || 0) > 0
-          );
-          
-          if (!hasRequiredProduct) {
-            return false;
-          }
-        }
-      }
-    }
-    
+    // Since all products are now optional, always return true
     return true;
   };
   
@@ -242,45 +227,132 @@ export default function Configurator(): JSX.Element {
         </div>
         
         {currentStep === 1 && (
-          <div>
-            {categories.map(category => (
-              <CategorySection
-                key={category.id}
-                category={category}
-                products={products}
-                selectedProducts={selectedProducts}
-                onQuantityChange={handleQuantityChange}
-              />
-            ))}
-            
-            <WarrantySelector
-              warrantyOptions={warrantyOptions}
-              selectedWarranty={selectedWarranty}
-              onSelect={handleWarrantySelect}
-            />
-            
-            <PaymentSelector
-              paymentOptions={paymentOptions}
-              selectedPayment={selectedPayment}
-              onSelect={handlePaymentSelect}
-              basePrice={basePrice}
-            />
-            
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold text-gray-800">Total</h3>
-                <div className="flex flex-col items-end">
-                  {basePrice !== totalPrice && (
-                    <div className="text-sm text-gray-600 mb-1">
-                      Base price: {formatCurrency(basePrice)}
+          <div className="flex flex-col lg:flex-row gap-12">
+            <div className="lg:w-1/2">
+              <div className="bg-white rounded-lg shadow-md p-8 sticky top-24">
+                <h3 className="text-xl font-bold text-gray-800 mb-6">Your Configuration</h3>
+                
+                {Array.from(selectedProducts.entries()).filter(([_, quantity]) => quantity > 0).length > 0 ? (
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      {/* List all selected products grouped by category */}
+                      {categories.map(category => {
+                        // Get products in this category that are selected
+                        const selectedCategoryProducts = products.filter(
+                          p => p.category === category.id && (selectedProducts.get(p.id) || 0) > 0
+                        );
+                        
+                        if (selectedCategoryProducts.length === 0) return null;
+                        
+                        return (
+                          <div key={category.id} className="pb-4 border-b border-gray-100">
+                            <h4 className="font-medium text-blue-600 mb-2">{category.name}</h4>
+                            
+                            <div className="space-y-3">
+                              {selectedCategoryProducts.map(product => {
+                                const quantity = selectedProducts.get(product.id) || 0;
+                                return (
+                                  <div key={product.id} className="flex justify-between">
+                                    <div>
+                                      <div className="font-medium text-gray-800">{product.name}</div>
+                                      <div className="text-sm text-gray-600">
+                                        Qty: {quantity} × {formatCurrency(product.unitPrice)}
+                                      </div>
+                                    </div>
+                                    <div className="text-right font-medium">
+                                      {formatCurrency(product.unitPrice * quantity)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                  <div className="text-2xl font-bold text-blue-700">{formatCurrency(totalPrice)}</div>
-                  {selectedPayment !== 'one-off' && paymentOption?.type === 'rental' && (
-                    <div className="text-sm text-gray-600 mt-1">
-                      Starting from {formatCurrency((totalPrice * (paymentOption.multiplier || 0)) / (paymentOption.termMonths || 1))}/month
+                    
+                    <div className="pt-4 border-t border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-xl font-bold text-gray-800">Total</h3>
+                        <div className="flex flex-col items-end">
+                          {basePrice !== totalPrice && (
+                            <div className="text-sm text-gray-600 mb-1">
+                              Base price: {formatCurrency(basePrice)}
+                            </div>
+                          )}
+                          <div className="text-2xl font-bold text-blue-700">{formatCurrency(totalPrice)}</div>
+                          {selectedPayment !== 'one-off' && paymentOption?.type === 'rental' && (
+                            <div className="text-sm text-gray-600 mt-1">
+                              Starting from {formatCurrency((totalPrice * (paymentOption.multiplier || 0)) / (paymentOption.termMonths || 1))}/month
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6">
+                        <div className="font-medium text-gray-800 mb-2">Selected Options:</div>
+                        <div className="flex flex-wrap gap-2">
+                          <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm">
+                            {warrantyOptions.find(w => w.id === selectedWarranty)?.name || 'Standard Warranty'}
+                          </div>
+                          <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm">
+                            {paymentOptions.find(p => p.id === selectedPayment)?.name || 'One-time Payment'}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  <div className="text-center py-10">
+                    <div className="mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-300 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                    </div>
+                    <h4 className="text-lg font-medium text-gray-800 mb-2">No items selected</h4>
+                    <p className="text-gray-600">
+                      Select components from the right panel to build your barrier gate system.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="lg:w-1/2">
+              <div className="space-y-8">
+                <div className="space-y-6">
+                  {categories.map(category => (
+                    <CategorySection
+                      key={category.id}
+                      category={category}
+                      products={products}
+                      selectedProducts={selectedProducts}
+                      onQuantityChange={handleQuantityChange}
+                    />
+                  ))}
+                </div>
+                
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">Warranty</h3>
+                  <p className="text-gray-600 mb-6">Choose the warranty option that provides the coverage you need.</p>
+                  
+                  <WarrantySelector
+                    warrantyOptions={warrantyOptions}
+                    selectedWarranty={selectedWarranty}
+                    onSelect={handleWarrantySelect}
+                  />
+                </div>
+                
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">Payment Options</h3>
+                  <p className="text-gray-600 mb-6">Choose the payment option that works best for your budget.</p>
+                  
+                  <PaymentSelector
+                    paymentOptions={paymentOptions}
+                    selectedPayment={selectedPayment}
+                    onSelect={handlePaymentSelect}
+                    basePrice={basePrice}
+                  />
                 </div>
               </div>
             </div>
@@ -288,56 +360,250 @@ export default function Configurator(): JSX.Element {
         )}
         
         {currentStep === 2 && (
-          <ProjectInfoForm
-            projectInfo={projectInfo}
-            onChange={handleProjectInfoChange}
-            errors={errors}
-          />
+          <div className="flex flex-col lg:flex-row gap-12">
+            {/* Left panel - Preview and details */}
+            <div className="lg:w-1/2">
+              <div className="bg-white rounded-lg shadow-md p-8 sticky top-24">
+                <h3 className="text-xl font-bold text-gray-800 mb-6">Your Configuration</h3>
+                
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    {/* List all selected products grouped by category */}
+                    {categories.map(category => {
+                      // Get products in this category that are selected
+                      const selectedCategoryProducts = products.filter(
+                        p => p.category === category.id && (selectedProducts.get(p.id) || 0) > 0
+                      );
+                      
+                      if (selectedCategoryProducts.length === 0) return null;
+                      
+                      return (
+                        <div key={category.id} className="pb-4 border-b border-gray-100">
+                          <h4 className="font-medium text-blue-600 mb-2">{category.name}</h4>
+                          
+                          <div className="space-y-3">
+                            {selectedCategoryProducts.map(product => {
+                              const quantity = selectedProducts.get(product.id) || 0;
+                              return (
+                                <div key={product.id} className="flex justify-between">
+                                  <div>
+                                    <div className="font-medium text-gray-800">{product.name}</div>
+                                    <div className="text-sm text-gray-600">
+                                      Qty: {quantity} × {formatCurrency(product.unitPrice)}
+                                    </div>
+                                  </div>
+                                  <div className="text-right font-medium">
+                                    {formatCurrency(product.unitPrice * quantity)}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xl font-bold text-gray-800">Total</h3>
+                      <div className="text-2xl font-bold text-blue-700">{formatCurrency(totalPrice)}</div>
+                    </div>
+                    
+                    <div className="mt-6">
+                      <div className="font-medium text-gray-800 mb-2">Selected Options:</div>
+                      <div className="flex flex-wrap gap-2">
+                        <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm">
+                          {warrantyOptions.find(w => w.id === selectedWarranty)?.name || 'Standard Warranty'}
+                        </div>
+                        <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm">
+                          {paymentOptions.find(p => p.id === selectedPayment)?.name || 'One-time Payment'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6 bg-blue-50 p-4 rounded-lg">
+                      <h4 className="font-medium text-blue-800 mb-2">What happens next?</h4>
+                      <ol className="text-sm text-blue-700 space-y-2 list-decimal pl-5">
+                        <li>We'll prepare your detailed quotation</li>
+                        <li>Our team will contact you within 24 hours</li>
+                        <li>Schedule a site inspection if needed</li>
+                        <li>Confirm installation date and details</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Right panel - Project information form */}
+            <div className="lg:w-1/2">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Your Information</h3>
+                <p className="text-gray-600 mb-6">Fill in your details to generate your quotation.</p>
+                
+                <ProjectInfoForm
+                  projectInfo={projectInfo}
+                  onChange={handleProjectInfoChange}
+                  errors={errors}
+                />
+              </div>
+            </div>
+          </div>
         )}
         
         {currentStep === 3 && quotation && (
-          <div>
-            <QuotationSummary
-              selectedProducts={selectedProducts}
-              products={products}
-              selectedWarranty={selectedWarranty}
-              warrantyOptions={warrantyOptions}
-              selectedPayment={selectedPayment}
-              paymentOptions={paymentOptions}
-              basePrice={quotation.basePrice}
-              totalPrice={quotation.totalPrice}
-              quotationNumber={quotation.quotationNumber}
-              date={quotation.date}
-              validUntil={quotation.validUntil}
-            />
-            
-            <div className="bg-white rounded-lg shadow-md p-6 mt-8">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Next Steps</h3>
-              <p className="text-gray-600 mb-6">
-                Your quotation has been generated. You can download it as a PDF or have it emailed to you.
-                Our team will contact you within 24 hours to discuss your requirements in more detail.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button
-                  onClick={handleDownloadPDF}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-lg hover:shadow-xl flex items-center justify-center"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="w-5 h-5 mr-2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                  </svg>
-                  Download PDF
-                </button>
+          <div className="flex flex-col lg:flex-row gap-12">
+            {/* Left panel - Preview and details */}
+            <div className="lg:w-1/2">
+              <div className="bg-white rounded-lg shadow-md p-8 sticky top-24">
+                <h3 className="text-xl font-bold text-gray-800 mb-6">Quotation Summary</h3>
                 
-                <button
-                  onClick={handleEmailQuotation}
-                  className="bg-white hover:bg-gray-100 text-blue-600 font-bold py-3 px-6 rounded-lg border border-blue-600 transition flex items-center justify-center"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="w-5 h-5 mr-2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                  </svg>
-                  Email Quotation
-                </button>
+                <div className="space-y-6">
+                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                    <div className="flex flex-wrap justify-between mb-2">
+                      <div>
+                        <span className="text-sm text-gray-600">Quotation #:</span>
+                        <span className="ml-1 font-medium">{quotation.quotationNumber}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600">Date:</span>
+                        <span className="ml-1 font-medium">{quotation.date.toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Valid until: {quotation.validUntil.toLocaleDateString()}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {/* List all selected products grouped by category */}
+                    {categories.map(category => {
+                      // Get products in this category that are selected
+                      const selectedCategoryProducts = products.filter(
+                        p => p.category === category.id && (selectedProducts.get(p.id) || 0) > 0
+                      );
+                      
+                      if (selectedCategoryProducts.length === 0) return null;
+                      
+                      return (
+                        <div key={category.id} className="pb-4 border-b border-gray-100">
+                          <h4 className="font-medium text-blue-600 mb-2">{category.name}</h4>
+                          
+                          <div className="space-y-3">
+                            {selectedCategoryProducts.map(product => {
+                              const quantity = selectedProducts.get(product.id) || 0;
+                              return (
+                                <div key={product.id} className="flex justify-between">
+                                  <div>
+                                    <div className="font-medium text-gray-800">{product.name}</div>
+                                    <div className="text-sm text-gray-600">
+                                      Qty: {quantity} × {formatCurrency(product.unitPrice)}
+                                    </div>
+                                  </div>
+                                  <div className="text-right font-medium">
+                                    {formatCurrency(product.unitPrice * quantity)}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xl font-bold text-gray-800">Total</h3>
+                      <div className="flex flex-col items-end">
+                        {basePrice !== totalPrice && (
+                          <div className="text-sm text-gray-600 mb-1">
+                            Base price: {formatCurrency(basePrice)}
+                          </div>
+                        )}
+                        <div className="text-2xl font-bold text-blue-700">{formatCurrency(totalPrice)}</div>
+                        {selectedPayment !== 'one-off' && paymentOption?.type === 'rental' && (
+                          <div className="text-sm text-gray-600 mt-1">
+                            Starting from {formatCurrency((totalPrice * (paymentOption.multiplier || 0)) / (paymentOption.termMonths || 1))}/month
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6">
+                      <div className="font-medium text-gray-800 mb-2">Selected Options:</div>
+                      <div className="flex flex-wrap gap-2">
+                        <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm">
+                          {warrantyOptions.find(w => w.id === selectedWarranty)?.name || 'Standard Warranty'}
+                        </div>
+                        <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm">
+                          {paymentOptions.find(p => p.id === selectedPayment)?.name || 'One-time Payment'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-6">
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <button
+                          onClick={handleDownloadPDF}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition shadow-lg hover:shadow-xl flex items-center justify-center"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="w-5 h-5 mr-2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                          </svg>
+                          Download PDF
+                        </button>
+                        
+                        <button
+                          onClick={handleEmailQuotation}
+                          className="bg-white hover:bg-gray-100 text-blue-600 font-bold py-3 px-6 rounded-lg border border-blue-600 transition flex items-center justify-center"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="w-5 h-5 mr-2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                          </svg>
+                          Email Quotation
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Right panel - Quotation summary */}
+            <div className="lg:w-1/2">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Project Details</h3>
+                
+                <div className="space-y-4">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-800 mb-2">Contact Information</h4>
+                    <div className="space-y-2 text-gray-700">
+                      <p><span className="font-medium">Project:</span> {projectInfo.name}</p>
+                      <p><span className="font-medium">Location:</span> {projectInfo.location}</p>
+                      <p><span className="font-medium">Contact:</span> {projectInfo.contactName}</p>
+                      <p><span className="font-medium">Phone:</span> {projectInfo.contactPhone}</p>
+                      <p><span className="font-medium">Email:</span> {projectInfo.contactEmail}</p>
+                      {projectInfo.notes && (
+                        <p><span className="font-medium">Notes:</span> {projectInfo.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-blue-800 mb-2">Next Steps</h4>
+                    <p className="text-blue-700 text-sm mb-4">
+                      Your quotation has been generated. Our team will contact you within 24 hours to discuss your requirements in detail.
+                    </p>
+                    <ol className="text-sm text-blue-700 space-y-2 list-decimal pl-5">
+                      <li>Review your quotation details</li>
+                      <li>Download or email your quotation for reference</li>
+                      <li>Expect a call from our team within 24 hours</li>
+                      <li>Schedule installation at your convenience</li>
+                    </ol>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

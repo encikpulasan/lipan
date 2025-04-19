@@ -89,3 +89,16 @@ Barrier Solutions provides an interactive configurator that allows customers to:
 - Updated product catalog with new models
 - Added detailed payment terms explanation
 - Enhanced quotation summary view
+
+### Version 1.5.0 (April 19, 2024)
+
+- Redesigned configurator with Apple-inspired two-panel layout
+- Made all product selections optional with zero quantity by default
+- Added dedicated "Remove" button for clearer product selection
+- Implemented manual quantity input for access cards
+- Transformed left panel to show dynamic summary of selected items
+- Enhanced mobile responsiveness with improved layout for smaller screens
+- Added real-time price calculations with per-category breakdowns
+- Improved visual feedback for selected options
+- Added empty state guidance when no products are selected
+- Redesigned quotation summary view with clearer organization
